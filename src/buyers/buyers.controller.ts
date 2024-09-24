@@ -11,7 +11,7 @@ import { Request } from 'express';
 export class BuyersController {
   constructor(private readonly buyersService: BuyersService) {}
 
-  @Post()
+  @Post('register')
   async create(@Body() createBuyerDto: CreateBuyerDto) {
     return this.buyersService.create(createBuyerDto);
   }

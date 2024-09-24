@@ -9,6 +9,9 @@ import { CartModule } from './cart/cart.module';
 import { OrdersModule } from './orders/orders.module';
 import { SellersModule } from './sellers/sellers.module';
 import { BuyersModule } from './buyers/buyers.module';
+import { PaymentsModule } from './payments/payments.module';
+import { OtpModule } from './otp/otp.module';
+import { PendingRegistrationModule } from './pending-registration/pending-registration.module';
 
 @Module({
   imports: [
@@ -24,7 +27,10 @@ import { BuyersModule } from './buyers/buyers.module';
     CartModule,
     OrdersModule,
     SellersModule,
-    BuyersModule
+    BuyersModule,
+    PaymentsModule,
+    OtpModule,
+    PendingRegistrationModule
   ],
 })
 export class AppModule {}

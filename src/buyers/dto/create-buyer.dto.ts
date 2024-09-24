@@ -29,4 +29,5 @@ export class CreateBuyerDto {
   @IsOptional()
   @IsString()
   readonly lastName?: string;
+
 }

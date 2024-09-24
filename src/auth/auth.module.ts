@@ -10,6 +10,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import { OrdersModule } from 'src/orders/orders.module';
 import { CartModule } from 'src/cart/cart.module';
+import { PaymentsModule } from 'src/payments/payments.module';
+//import { EmailService } from './email.service';
+import { EmailModule } from './email.module';
+import { OtpModule } from 'src/otp/otp.module';
+import { PendingRegistrationModule } from 'src/pending-registration/pending-registration.module';
 
 @Module({
   imports: [
@@ -18,6 +23,10 @@ import { CartModule } from 'src/cart/cart.module';
     BuyersModule,
     OrdersModule,
     CartModule,
+    PaymentsModule,
+    EmailModule,
+    OtpModule,
+    PendingRegistrationModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

@@ -5,6 +5,7 @@ import { BuyerDocument } from './schema/buyers.schema';
 import { CreateBuyerDto } from './dto/create-buyer.dto';
 import { UpdateBuyerDto } from './dto/update-buyer.dto';
 import * as bcrypt from 'bcrypt';
+//import { BuyerCreationAttrs } from './interface/buyer-creation.interface';
 
 @Injectable()
 export class BuyersService {
@@ -12,7 +13,7 @@ export class BuyersService {
     @InjectModel('Buyer.name') private readonly buyerModel: Model<BuyerDocument>,
   ) {}
 
-  async create(createBuyerDto: CreateBuyerDto): Promise<BuyerDocument> {
+   async create(createBuyerDto: CreateBuyerDto): Promise<BuyerDocument> {
     const hashedPassword = await bcrypt.hash(createBuyerDto.password, 10);
     const newBuyer = new this.buyerModel({
       ...createBuyerDto,
@@ -20,6 +21,8 @@ export class BuyersService {
     });
     return newBuyer.save();
   }
+ 
+
 
   async findById(id: string): Promise<BuyerDocument> {
     const buyer = await this.buyerModel.findById(id).exec();

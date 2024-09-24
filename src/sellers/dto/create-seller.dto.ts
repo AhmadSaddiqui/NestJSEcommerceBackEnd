@@ -22,4 +22,7 @@ export class CreateSellerDto {
 
   @IsString()
   phoneNumber: string;
+  @IsString()
+  role: string;
+
 }

@@ -22,5 +22,6 @@ export class SelfRegisterSellerDto {
   address: string;
 
   @IsString()
-  phoneNumber: string;
+  phoneNumber: string;readonly role: string = 'seller'; // Optional: default role for sellers
+
 }

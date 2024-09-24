@@ -1,0 +1,127 @@
+|-- .env
+|-- .eslintrc.js
+|-- .gitignore
+|-- .prettierrc
+|-- nest-cli.json
+|-- package-lock.json
+|-- package.json
+|-- README.md
+|-- src
+    |-- app.controller.spec.ts
+    |-- app.controller.ts
+    |-- app.module.ts
+    |-- app.service.ts
+    |-- auth
+        |-- auth.controller.spec.ts
+        |-- auth.controller.ts
+        |-- auth.guard.ts
+        |-- auth.module.ts
+        |-- auth.service.spec.ts
+        |-- auth.service.ts
+        |-- constants.ts
+        |-- email.module.ts
+        |-- email.service.ts
+        |-- jwt-auth.guard.ts
+        |-- jwt-payload.interface.ts
+        |-- jwt.strategy.ts
+        |-- local.strategy.ts
+        |-- login.dto.ts
+        |-- register.dto.ts
+        |-- role.enum.ts
+        |-- roles.decorator.ts
+        |-- roles.guard.ts
+    |-- buyers
+        |-- buyers.controller.spec.ts
+        |-- buyers.controller.ts
+        |-- buyers.module.ts
+        |-- buyers.service.spec.ts
+        |-- buyers.service.ts
+        |-- dto
+            |-- create-buyer.dto.ts
+            |-- update-buyer.dto.ts
+        |-- schema
+            |-- buyers.schema.ts
+    |-- cart
+        |-- cart.controller.spec.ts
+        |-- cart.controller.ts
+        |-- cart.module.ts
+        |-- cart.service.spec.ts
+        |-- cart.service.ts
+        |-- dto
+            |-- add-to-cart.dto.ts
+            |-- checkout-cart.dto.ts
+            |-- create-cart-item.dto.ts
+            |-- update-cart.dto.ts
+        |-- interface
+            |-- cart-item.interface.ts
+        |-- schema
+            |-- cart.schema.ts
+    |-- common
+        |-- interfaces
+            |-- identity.interface.ts
+    |-- main.ts
+    |-- orders
+        |-- dto
+            |-- create-order.dto.ts
+            |-- update-order.dto.ts
+        |-- orders.controller.spec.ts
+        |-- orders.controller.ts
+        |-- orders.module.ts
+        |-- orders.service.spec.ts
+        |-- orders.service.ts
+        |-- schema
+            |-- orders.schema.ts
+    |-- otp
+        |-- otp.controller.ts
+        |-- otp.module.ts
+        |-- otp.schema.ts
+        |-- otp.service.ts
+    |-- payments
+        |-- payments.controller.ts
+        |-- payments.module.ts
+        |-- payments.service.ts
+    |-- pending-registration
+        |-- pending-registration.module.ts
+        |-- pending-registration.service.ts
+    |-- products
+        |-- dto
+            |-- create-product.dto.ts
+            |-- update-product.dto.ts
+        |-- products.controller.spec.ts
+        |-- products.controller.ts
+        |-- products.module.ts
+        |-- products.service.spec.ts
+        |-- products.service.ts
+        |-- schema
+            |-- products.schema.ts
+    |-- sellers
+        |-- dto
+            |-- create-seller.dto.ts
+            |-- SelfRegisterSellerDto.ts
+            |-- update-seller.dto.ts
+        |-- schema
+            |-- sellers.schema.ts
+        |-- sellers.controller.spec.ts
+        |-- sellers.controller.ts
+        |-- sellers.module.ts
+        |-- sellers.service.spec.ts
+        |-- sellers.service.ts
+    |-- types
+        |-- express.d.ts
+    |-- users
+        |-- dto
+            |-- create-user.dto.ts
+            |-- update-user.dto.ts
+        |-- schema
+            |-- users.schema.ts
+        |-- users.controller.spec.ts
+        |-- users.controller.ts
+        |-- users.module.ts
+        |-- users.service.spec.ts
+        |-- users.service.ts
+|-- test
+    |-- app.e2e-spec.ts
+    |-- jest-e2e.json
+|-- tsconfig.build.json
+|-- tsconfig.json
+|-- uploads
