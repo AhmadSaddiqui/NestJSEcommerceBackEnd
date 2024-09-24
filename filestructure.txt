@@ -81,6 +81,7 @@
         |-- payments.module.ts
         |-- payments.service.ts
     |-- pending-registration
+        |-- pending-registration.interface.ts
         |-- pending-registration.module.ts
         |-- pending-registration.service.ts
     |-- products

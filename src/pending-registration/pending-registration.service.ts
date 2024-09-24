@@ -1,11 +1,7 @@
 // src/pending-registration/pending-registration.service.ts
 
 import { Injectable } from '@nestjs/common';
-import { RegisterDto } from '../auth/register.dto';
-import { SelfRegisterSellerDto } from '../sellers/dto/SelfRegisterSellerDto';
-
-// Define a union type to handle both DTOs
-type PendingRegistration = RegisterDto | SelfRegisterSellerDto;
+import { PendingRegistration } from './pending-registration.interface';
 
 @Injectable()
 export class PendingRegistrationService {

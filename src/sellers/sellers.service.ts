@@ -252,12 +252,12 @@ export class SellersService {
     // Check if a seller with the same email or shop name already exists
     const existingSellerByEmail = await this.sellerModel.findOne({ email }).exec();
     if (existingSellerByEmail) {
-        throw new ConflictException('Seller with this email already exists');
+      throw new ConflictException('Seller with this email already exists');
     }
 
     const existingSellerByShopName = await this.sellerModel.findOne({ shopName }).exec();
     if (existingSellerByShopName) {
-        throw new ConflictException('Seller with this shop name already exists');
+      throw new ConflictException('Seller with this shop name already exists');
     }
 
     // Store registration details using PendingRegistrationService
@@ -272,7 +272,25 @@ export class SellersService {
     // Send OTP via email
     await this.emailService.sendVerificationEmail(email, otp);
     console.log('OTP sent to:', email);
-}
+  }
+
+  async completeRegistration(email: string, pendingRegistration: SelfRegisterSellerDto): Promise<Seller> {
+    // Create a new seller from pending registration data
+    const hashedPassword = await bcrypt.hash(pendingRegistration.password, 10);
+    
+    const newSeller = new this.sellerModel({
+      email,
+      password: hashedPassword,
+      firstName: pendingRegistration.firstName,
+      lastName: pendingRegistration.lastName,
+      shopName: pendingRegistration.shopName,
+      address: pendingRegistration.address,
+      phoneNumber: pendingRegistration.phoneNumber,
+      role: 'seller', // Default role for sellers
+    });
+
+    return await newSeller.save(); // Save to the database
+  }
 
   
   // Simple OTP generation logic (6-digit number)

@@ -792,6 +792,7 @@ export class AuthService {
     import { EmailService } from './email.service';
     import { PendingRegistrationService } from '../pending-registration/pending-registration.service';
     import { SelfRegisterSellerDto } from 'src/sellers/dto/SelfRegisterSellerDto';
+import { PendingRegistration } from 'src/pending-registration/pending-registration.interface';
     
     @Injectable()
     export class AuthService {
@@ -802,13 +803,10 @@ export class AuthService {
         private readonly jwtService: JwtService,
         private readonly emailService: EmailService,
         private readonly otpService: OtpService,
-        private readonly pendingRegistrationService: PendingRegistrationService
+        private readonly pendingRegistrationService: PendingRegistrationService,
       ) {}
     
-      // Registration method
-      async register(
-        registerDto: RegisterDto | SelfRegisterSellerDto
-      ): Promise<void> {
+      async register(registerDto: RegisterDto | SelfRegisterSellerDto): Promise<void> {
         const { email } = registerDto;
     
         if (!email) {
@@ -824,10 +822,22 @@ export class AuthService {
         // Generate OTP
         const otp = this.generateOtp();
     
+        // Create a pending registration object
+        const pendingRegistration: PendingRegistration = {
+          email: normalizedEmail,
+          password: registerDto.password,
+          role: registerDto.role,
+          firstName: (registerDto as SelfRegisterSellerDto).firstName || '', // Only extract if it's a seller
+          lastName: (registerDto as SelfRegisterSellerDto).lastName || '', // Only extract if it's a seller
+          shopName: (registerDto as SelfRegisterSellerDto).shopName || '', // Only extract if it's a seller
+          address: (registerDto as SelfRegisterSellerDto).address || '', // Only extract if it's a seller
+          phoneNumber: (registerDto as SelfRegisterSellerDto).phoneNumber || '', // Only extract if it's a seller
+        };
+    
         // Store registration details in PendingRegistrationService
         this.pendingRegistrationService.addPendingRegistration(
           normalizedEmail,
-          registerDto
+          pendingRegistration
         );
         console.log(`Pending registration added for ${normalizedEmail}`);
     
@@ -843,10 +853,9 @@ export class AuthService {
       // Verify OTP and complete registration
       async verifyOtp(email: string, otp: string): Promise<any> {
         const normalizedEmail = email.trim().toLowerCase();
-        console.log('Pending registrations:', this.pendingRegistrationService.getAllPendingRegistrations());
     
         // Retrieve pending registration details
-        const pendingRegistration = this.pendingRegistrationService.getPendingRegistration(normalizedEmail);
+        const pendingRegistration = this.pendingRegistrationService.getPendingRegistration(normalizedEmail) as SelfRegisterSellerDto;
         if (!pendingRegistration) {
           throw new BadRequestException('No pending registration found');
         }
@@ -864,17 +873,36 @@ export class AuthService {
           throw new BadRequestException('OTP has expired');
         }
     
-        // Proceed with user registration based on DTO type
-        const user = await this.registerUser(pendingRegistration, normalizedEmail);
+        // Complete registration by transferring pending registration to DB
+        const user = await this.sellersService.completeRegistration(normalizedEmail, pendingRegistration);
     
         // Clean up after registration
         await this.otpService.deleteOtp(normalizedEmail); // Remove OTP after successful registration
         this.pendingRegistrationService.removePendingRegistration(normalizedEmail); // Remove pending registration
-    
+        console.log('Seller successfully registered:', user);
         return user;
       }
+      // Utility function to check if the DTO is RegisterDto
+      private isRegisterDto(dto: any): dto is RegisterDto {
+        return (dto as RegisterDto).role !== undefined;
+      }
     
-      // Helper method to register user based on role
+      // Utility to check if email already exists
+      private async checkEmailExists(email: string, role: string): Promise<void> {
+        if (role === 'buyer') {
+          const existingBuyer = await this.buyersService.findByEmail(email);
+          if (existingBuyer) throw new BadRequestException('Email already exists');
+        } else if (role === 'seller') {
+          const existingSeller = await this.sellersService.findByEmail(email);
+          if (existingSeller) throw new BadRequestException('Email already exists');
+        } else if (role === 'user') {
+          const existingUser = await this.usersService.findByEmail(email);
+          if (existingUser) throw new BadRequestException('Email already exists');
+        } else {
+          throw new BadRequestException('Invalid role for registration');
+        }
+      }
+     // Helper method to register user based on role
       private async registerUser(
         registerDto: RegisterDto | SelfRegisterSellerDto,
         email: string
@@ -906,10 +934,10 @@ export class AuthService {
           }
         } else {
           // Handle seller registration using SelfRegisterSellerDto
-          const role = registerDto.role; // Get role from DTO
+          const role = registerDto.role;
           
           if (role !== 'seller') {
-            throw new BadRequestException('Invalid role for registration'); // This will catch invalid roles
+            throw new BadRequestException('Invalid role for registration');
           }
     
           // Create the seller in the database
@@ -921,7 +949,7 @@ export class AuthService {
             firstName: registerDto.firstName,
             lastName: registerDto.lastName,
             shopName: registerDto.shopName,
-            role, // Ensure role is included
+            role,
           });
           console.log('Seller registered:', seller);
           return seller;
@@ -929,26 +957,7 @@ export class AuthService {
       }
     
       // Utility function to check if the DTO is RegisterDto
-      private isRegisterDto(dto: any): dto is RegisterDto {
-        return (dto as RegisterDto).role !== undefined;
-      }
-    
-      // Utility to check if email already exists
-      private async checkEmailExists(email: string, role: string): Promise<void> {
-        if (role === 'buyer') {
-          const existingBuyer = await this.buyersService.findByEmail(email);
-          if (existingBuyer) throw new BadRequestException('Email already exists');
-        } else if (role === 'seller') {
-          const existingSeller = await this.sellersService.findByEmail(email);
-          if (existingSeller) throw new BadRequestException('Email already exists');
-        } else if (role === 'user') {
-          const existingUser = await this.usersService.findByEmail(email);
-          if (existingUser) throw new BadRequestException('Email already exists');
-        } else {
-          throw new BadRequestException('Invalid role for registration');
-        }
-      }
-    
+      
       // Generate a random 6-digit OTP
       private generateOtp(): string {
         return Math.floor(100000 + Math.random() * 900000).toString();
@@ -1016,4 +1025,5 @@ export class AuthService {
         throw new BadRequestException('User not found');
       }
     }
+    
     
