@@ -923,7 +923,7 @@ import { PendingRegistration } from 'src/pending-registration/pending-registrati
               lastName: '',
               username: 'default',
             });
-          } else if (role === 'user') {
+          } else if (role === 'admin') {
             return this.usersService.create({
               name: registerDto.name,
               username: registerDto.username,
@@ -973,7 +973,7 @@ import { PendingRegistration } from 'src/pending-registration/pending-registrati
             user = await this.buyersService.findByEmail(email);
           } else if (role === 'seller') {
             user = await this.sellersService.findByEmail(email);
-          } else if (role === 'user') {
+          } else if (role === 'admin') {
             user = await this.usersService.findByEmail(email);
           } else {
             throw new BadRequestException('Invalid role for login');

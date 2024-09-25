@@ -17,6 +17,9 @@ export class User extends Document {
 
   @Prop({ required: true, enum: ['admin', 'seller', 'buyer'], default: 'buyer' })  // Add role field
   role: string;
+  @Prop({ type: Boolean, default: false }) // Use Boolean instead of boolean
+  isAdmin: boolean;
 }
+
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, IsBoolean } from 'class-validator';
 
 export class CreateUserDto {
   @IsString()
@@ -20,4 +20,6 @@ export class CreateUserDto {
   @IsString()
   @IsNotEmpty()
   role: string;  // Ensure this field is present
+  @IsBoolean()
+  isAdmin?: boolean; // Optional
 }

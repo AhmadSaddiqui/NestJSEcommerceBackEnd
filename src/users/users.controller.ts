@@ -7,16 +7,16 @@ import { RoleGuard } from '../auth/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('users')
-@UseGuards(JwtAuthGuard, RoleGuard)
+
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @Role('admin')
+  //@Role('admin')
   async createUser(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
-
+  @UseGuards(JwtAuthGuard, RoleGuard)
   @Get()
   @Role('admin')
   async getAllUsers() {

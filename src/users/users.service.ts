@@ -1,5 +1,5 @@
 //user service
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from './schema/users.schema';
@@ -14,10 +14,18 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
+    // Check if the user being created is an admin
+    if (createUserDto.role === 'admin') {
+      const existingAdmin = await this.userModel.findOne({ role: 'admin' }).exec();
+      if (existingAdmin) {
+        throw new ConflictException('An admin already exists. Only one admin can be registered.');
+      }
+    }
+  
     const newUser = new this.userModel(createUserDto);
     return await newUser.save();
   }
-
+  
   async findByUsername(username: string): Promise<User | null> {
     return this.userModel.findOne({ username }).exec();
   }
