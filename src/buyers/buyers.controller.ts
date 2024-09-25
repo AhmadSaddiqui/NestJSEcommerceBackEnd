@@ -15,6 +15,10 @@ export class BuyersController {
   async create(@Body() createBuyerDto: CreateBuyerDto) {
     return this.buyersService.create(createBuyerDto);
   }
+  @Get()
+  async findAll() {
+    return this.buyersService.findAllBuyers(); // Call the service to get all sellers
+  }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)

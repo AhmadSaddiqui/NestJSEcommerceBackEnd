@@ -24,6 +24,10 @@ export class SellersController {
   async create(@Body() createSellerDto: CreateSellerDto) {
     return this.sellersService.create(createSellerDto);
   }
+  @Get()
+  async findAll() {
+    return this.sellersService.findAll(); // Call the service to get all sellers
+  }
 
  
 

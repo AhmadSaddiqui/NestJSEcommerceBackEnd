@@ -2,10 +2,15 @@ import { Controller, Post, Body, Get, Param, BadRequestException } from '@nestjs
 import { AuthService } from './auth.service';
 import { LoginDto } from './login.dto';
 import { RegisterDto } from './register.dto';
+import { SellersService } from 'src/sellers/sellers.service';
+import { BuyersService } from 'src/buyers/buyers.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService,
+    private readonly sellerService: SellersService,
+    private readonly buyerService : BuyersService
+  ) {}
 
   // Registration endpoint
   @Post('register')
@@ -24,6 +29,13 @@ export class AuthController {
   @Get('users/:id')
   async findById(@Param('id') id: string) {
     return this.authService.findById(id);
+  }
+  @Get('sellers')
+  async findAll(@Param() id: string) {
+    return this.sellerService.findAll();
+  } @Get('buyers')
+  async findAllBuyers(@Param() id: string) {
+    return this.buyerService.findAllBuyers();
   }
 
   // Get user by Email
@@ -56,5 +68,9 @@ export class AuthController {
       message: 'OTP verified successfully. You are now registered.', 
       user  // Optionally return the user details if needed
     };
+  }
+  @Get('users')
+  async getAllUsers() {
+    return this.authService.getAllUsers();
   }
 }

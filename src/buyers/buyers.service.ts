@@ -58,4 +58,7 @@ export class BuyersService {
     }
     return null;
   }
+  async findAllBuyers(): Promise<BuyerDocument[]> {
+    return this.buyerModel.find().exec(); // Retrieve all buyers
+  }
 }

@@ -1024,6 +1024,17 @@ import { PendingRegistration } from 'src/pending-registration/pending-registrati
     
         throw new BadRequestException('User not found');
       }
+      async getAllUsers(): Promise<any[]> {
+        try {
+          const buyers = await this.buyersService.findAllBuyers();
+          const sellers = await this.sellersService.findAll();
+          const users = await this.usersService.findAll();
+    
+          return [ ...buyers , ...sellers, ...users]; // Combine all users
+        } catch (error) {
+          throw new InternalServerErrorException('Failed to fetch all users');
+        }
+      }
     }
     
     
