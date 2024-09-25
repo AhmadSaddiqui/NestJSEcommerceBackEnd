@@ -23,6 +23,10 @@ export class ProductsController {
     const image = file ? file.buffer.toString('base64') : createProductDto.image;
     return this.productsService.create({ ...createProductDto, image }, userId);
   }
+  @Get('name/:title')
+  async findByName(@Param('title') title: string) {
+    return this.productsService.findByName(title);
+  }
 
   @Get()
   async findAll(@Req() req: Request) {

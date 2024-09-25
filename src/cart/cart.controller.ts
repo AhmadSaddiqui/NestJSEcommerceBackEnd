@@ -95,11 +95,12 @@ export class CartController {
 }
 
 */
-import { Controller, Post, Get, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Param, UseGuards, Request, BadRequestException } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateCartDto } from './dto/create-cart-item.dto';
 import { console } from 'inspector';
+import {Types} from 'mongoose'
 
 @Controller('cart')
 export class CartController {
@@ -126,14 +127,22 @@ export class CartController {
     return this.cartService.updateCart(buyerId, productId, quantity);
   }
 
-  @Delete(':id')
-@UseGuards(JwtAuthGuard)
-async removeFromCart(@Param('id') productId: string, @Request() req: any) {
-    console.log('Remove from Cart called'); // Check if this logs
-    const buyerId = req.user.userId;
-    console.log('Buyer ID:', buyerId);
+  
+  @Delete(':buyerId/items/:productId')
+  async removeFromCart(
+    @Param('buyerId') buyerId: string,
+    @Param('productId') productId: string,
+  ) {
+    // Ensure buyerId and productId are valid ObjectIds
+    if (!Types.ObjectId.isValid(buyerId) || !Types.ObjectId.isValid(productId)) {
+      throw new BadRequestException('Invalid IDs provided');
+    }
+    console.log('Buyer ID byb byby:', buyerId);
+
+
     return this.cartService.removeFromCart(buyerId, productId);
-}
+  }
+
   
   @Delete('clear')
   @UseGuards(JwtAuthGuard)

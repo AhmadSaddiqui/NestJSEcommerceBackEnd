@@ -4,10 +4,12 @@ import { CartService } from './cart.service';
 import { CartController } from './cart.controller';
 import { CartSchema } from './schema/cart.schema';
 import { CartModel } from './schema/cart.schema';
+import { ProductsModule } from 'src/products/products.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: 'Cart', schema: CartSchema }]), // Register Cart schema
+    MongooseModule.forFeature([{ name: 'Cart', schema: CartSchema }]), 
+    ProductsModule// Register Cart schema
   ],
   controllers: [CartController], // Register CartController
   providers: [CartService],

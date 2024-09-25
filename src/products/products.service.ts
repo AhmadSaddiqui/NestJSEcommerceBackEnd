@@ -20,20 +20,7 @@ export class ProductsService {
     return await newProduct.save();
   }
 
-  // Modified findAll to only return seller's own products
- /*  async findAll(userId: string, role: string): Promise<Product[]> {
-    if (role === 'admin') {
-      // Admin can see all products
-      // return await this.productModel.find().exec();
-    } else if (role === 'seller') {
-      // Seller can only see their own products
-      console.log("Seller", userId)
-      return await this.productModel.find({ seller: userId }).exec();
-    } else {
-      // For other roles, no products are shown (you can modify this for buyers)
-      return [];
-    }
-  } */
+
     async findAll(userId: string, userRole: string): Promise<Product[]> {
       if (userRole === 'admin' || userRole === 'buyer') {
         return this.productModel.find().exec(); // All products for admin and buyers
@@ -47,6 +34,13 @@ export class ProductsService {
     const product = await this.productModel.findById(id).exec();
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+    return product;
+  }
+  async findByName(title: string): Promise<Product> {
+    const product = await this.productModel.findOne({ title }).exec();
+    if (!product) {
+      throw new NotFoundException(`Product with name "${title}" not found`);
     }
     return product;
   }
@@ -78,3 +72,18 @@ export class ProductsService {
     await this.productModel.findByIdAndDelete(id).exec();
   }
 }
+
+  // Modified findAll to only return seller's own products
+ /*  async findAll(userId: string, role: string): Promise<Product[]> {
+    if (role === 'admin') {
+      // Admin can see all products
+      // return await this.productModel.find().exec();
+    } else if (role === 'seller') {
+      // Seller can only see their own products
+      console.log("Seller", userId)
+      return await this.productModel.find({ seller: userId }).exec();
+    } else {
+      // For other roles, no products are shown (you can modify this for buyers)
+      return [];
+    }
+  } */
