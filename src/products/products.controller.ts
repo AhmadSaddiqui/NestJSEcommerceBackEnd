@@ -48,6 +48,7 @@ export class ProductsController {
     @Req() req: Request
   ) {
     const userId = req.user.userId; // Ensure that the seller is updating their own product
+   
     return this.productsService.update(id, updateProductDto, userId);
   }
 

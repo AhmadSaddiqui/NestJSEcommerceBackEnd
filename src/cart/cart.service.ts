@@ -263,26 +263,31 @@ export class CartService {
         throw new BadRequestException('Invalid product ID format');
     }
     
-    const cart = await this.getCart(buyerId);
+    // Retrieve the cart for the given buyer ID
+    const cart = await this.cartModel.findOne({ buyer: buyerId });
     console.log('Cart:', cart); // Log the cart object
     
-    if (!cart) throw new NotFoundException('Cart not found');
+    if (!cart) {
+        throw new NotFoundException('Cart not found');
+    }
+
+    // Find the index of the product in the cart items
+    const productIndex = cart.items.findIndex(item => item.product.toString() === trimmedProductId);
     
-    const initialLength = cart.items.length;
-    cart.items = cart.items.filter(item => item.product.toString() !== trimmedProductId);
-    
-    if (cart.items.length === initialLength) {
+    // If product does not exist in the cart, throw an exception
+    if (productIndex === -1) {
         throw new NotFoundException('Product not found in cart');
     }
-    console.log('Buyer ID:', buyerId);
-console.log('Product ID:', productId);
-console.log('Current Cart Items:', cart.items);
+
+    // Remove the product from the cart items
+    cart.items.splice(productIndex, 1); // Remove the product at the found index
+    
+    console.log('Updated Cart Items:', cart.items);
+    
+    // Save the updated cart
     return await cart.save();
 }
-  async clearCart(buyerId: string): Promise<string> {
-    const cart = await this.cartModel.findOneAndDelete({ buyer: buyerId });
-    if (!cart) throw new NotFoundException('Cart not found');
 
-    return 'Cart cleared successfully';
-  }
+
+
 }
