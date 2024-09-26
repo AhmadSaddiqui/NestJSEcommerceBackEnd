@@ -14,17 +14,14 @@
     |-- auth
         |-- auth.controller.spec.ts
         |-- auth.controller.ts
-        |-- auth.guard.ts
         |-- auth.module.ts
         |-- auth.service.spec.ts
         |-- auth.service.ts
-        |-- constants.ts
         |-- email.module.ts
         |-- email.service.ts
         |-- jwt-auth.guard.ts
         |-- jwt-payload.interface.ts
         |-- jwt.strategy.ts
-        |-- local.strategy.ts
         |-- login.dto.ts
         |-- register.dto.ts
         |-- role.enum.ts

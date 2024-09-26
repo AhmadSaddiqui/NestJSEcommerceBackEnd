@@ -1,3 +1,159 @@
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Seller } from './schema/sellers.schema';
+import { CreateSellerDto } from './dto/create-seller.dto';
+import { UpdateSellerDto } from './dto/update-seller.dto';
+import { SelfRegisterSellerDto } from './dto/SelfRegisterSellerDto';
+import * as bcrypt from 'bcrypt';
+import { EmailService } from 'src/auth/email.service';
+import { OtpService } from 'src/otp/otp.service';
+import { PendingRegistrationService } from 'src/pending-registration/pending-registration.service'; // Import PendingRegistrationService
+
+@Injectable()
+export class SellersService {
+  constructor(
+    @InjectModel('Seller') private sellerModel: Model<Seller>, // Correctly referencing Seller
+    private readonly emailService: EmailService,
+    private readonly otpService: OtpService,
+    private readonly pendingRegistrationService: PendingRegistrationService, // Inject PendingRegistrationService
+  ) {}
+
+  async create(createSellerDto: CreateSellerDto): Promise<Seller> {
+    const newSeller = new this.sellerModel(createSellerDto);
+    return newSeller.save();
+  }
+
+  async selfRegister(selfRegisterSellerDto: SelfRegisterSellerDto): Promise<void> {
+    const { email, shopName } = selfRegisterSellerDto;
+
+    // Check if a seller with the same email or shop name already exists
+    const existingSellerByEmail = await this.sellerModel.findOne({ email }).exec();
+    if (existingSellerByEmail) {
+      throw new ConflictException('Seller with this email already exists');
+    }
+
+    const existingSellerByShopName = await this.sellerModel.findOne({ shopName }).exec();
+    if (existingSellerByShopName) {
+      throw new ConflictException('Seller with this shop name already exists');
+    }
+
+    // Store registration details using PendingRegistrationService
+    this.pendingRegistrationService.addPendingRegistration(email, selfRegisterSellerDto);
+    console.log('Pending Registrations after adding:', this.pendingRegistrationService.getAllPendingRegistrations());
+
+    // Generate OTP and store it in the database
+    const otp = this.generateOtp();
+    console.log('Generated OTP:', otp);
+    await this.otpService.createOtp(email, otp);
+
+    // Send OTP via email
+    await this.emailService.sendVerificationEmail(email, otp);
+    console.log('OTP sent to:', email);
+  }
+
+  async completeRegistration(email: string, pendingRegistration: SelfRegisterSellerDto): Promise<Seller> {
+    // Create a new seller from pending registration data
+    const hashedPassword = await bcrypt.hash(pendingRegistration.password, 10);
+    
+    const newSeller = new this.sellerModel({
+      email,
+      password: hashedPassword,
+      firstName: pendingRegistration.firstName,
+      lastName: pendingRegistration.lastName,
+      shopName: pendingRegistration.shopName,
+      address: pendingRegistration.address,
+      phoneNumber: pendingRegistration.phoneNumber,
+      role: 'seller', // Default role for sellers
+    });
+
+    return await newSeller.save(); // Save to the database
+  }
+
+  
+  // Simple OTP generation logic (6-digit number)
+  private generateOtp(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  async findById(id: string): Promise<Seller> {
+    const seller = await this.sellerModel.findById(id).exec();
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID ${id} not found`);
+    }
+    return seller;
+  }
+
+  async findAll(): Promise<Seller[]> {
+    return this.sellerModel.find().exec();
+  }
+
+  async findOne(id: string): Promise<Seller> {
+    return this.sellerModel.findById(id).exec();
+  }
+
+  async update(id: string, updateSellerDto: UpdateSellerDto): Promise<Seller> {
+    return this.sellerModel.findByIdAndUpdate(id, updateSellerDto, { new: true }).exec();
+  }
+
+  async remove(id: string): Promise<Seller> {
+    return this.sellerModel.findByIdAndDelete(id).exec();
+  }
+
+  async findByEmail(email: string): Promise<Seller | null> {
+    return this.sellerModel.findOne({ email }).exec();
+  }
+}
+/* async verifyOtp(email: string, otp: string): Promise<Seller> {
+    console.log(email, otp);
+
+    // Retrieve pending registration from PendingRegistrationService
+    const pendingRegistration = this.pendingRegistrationService.getPendingRegistration(email);
+    if (!pendingRegistration) {
+      throw new ConflictException('No pending registration found for this email');
+    }
+
+    // Validate the OTP from the database
+    const otpRecord = await this.otpService.findOtpByEmail(email);
+    if (!otpRecord || otpRecord.otp !== otp) {
+      throw new ConflictException('Invalid OTP');
+    }
+
+    // Check if OTP has expired (5-minute expiration)
+    const otpAge = Date.now() - otpRecord.createdAt.getTime();
+    if (otpAge > 5 * 60 * 1000) {
+      await this.otpService.deleteOtp(email);
+      throw new ConflictException('OTP has expired');
+    }
+
+    // Hash the password before saving the seller
+    const hashedPassword = await bcrypt.hash(pendingRegistration.password, 10);
+
+    // Create and save the new seller
+    const newSeller = new this.sellerModel({
+      email,
+      shopName: pendingRegistration.shopName,
+      password: hashedPassword,
+      firstName: pendingRegistration.firstName,
+      lastName: pendingRegistration.lastName,
+      address: pendingRegistration.address,
+      phoneNumber: pendingRegistration.phoneNumber,
+    });
+
+    try {
+      const savedSeller = await newSeller.save();
+
+      // Cleanup after successful save
+      await this.otpService.deleteOtp(email);
+      this.pendingRegistrationService.removePendingRegistration(email);
+
+      return savedSeller;
+    } catch (error) {
+      console.error('Error saving seller:', error);
+      throw new InternalServerErrorException('Error registering seller');
+    }
+  }
+ */
 // src/sellers/sellers.service.ts
 
 /* import { Injectable, NotFoundException, ConflictException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
@@ -219,160 +375,4 @@ export class SellersService {
     // Simple OTP generation logic (6-digit number)
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
-   */  
-  import { Injectable, NotFoundException, ConflictException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Seller } from './schema/sellers.schema';
-import { CreateSellerDto } from './dto/create-seller.dto';
-import { UpdateSellerDto } from './dto/update-seller.dto';
-import { SelfRegisterSellerDto } from './dto/SelfRegisterSellerDto';
-import * as bcrypt from 'bcrypt';
-import { EmailService } from 'src/auth/email.service';
-import { OtpService } from 'src/otp/otp.service';
-import { PendingRegistrationService } from 'src/pending-registration/pending-registration.service'; // Import PendingRegistrationService
-
-@Injectable()
-export class SellersService {
-  constructor(
-    @InjectModel('Seller') private sellerModel: Model<Seller>, // Correctly referencing Seller
-    private readonly emailService: EmailService,
-    private readonly otpService: OtpService,
-    private readonly pendingRegistrationService: PendingRegistrationService, // Inject PendingRegistrationService
-  ) {}
-
-  async create(createSellerDto: CreateSellerDto): Promise<Seller> {
-    const newSeller = new this.sellerModel(createSellerDto);
-    return newSeller.save();
-  }
-
-  async selfRegister(selfRegisterSellerDto: SelfRegisterSellerDto): Promise<void> {
-    const { email, shopName } = selfRegisterSellerDto;
-
-    // Check if a seller with the same email or shop name already exists
-    const existingSellerByEmail = await this.sellerModel.findOne({ email }).exec();
-    if (existingSellerByEmail) {
-      throw new ConflictException('Seller with this email already exists');
-    }
-
-    const existingSellerByShopName = await this.sellerModel.findOne({ shopName }).exec();
-    if (existingSellerByShopName) {
-      throw new ConflictException('Seller with this shop name already exists');
-    }
-
-    // Store registration details using PendingRegistrationService
-    this.pendingRegistrationService.addPendingRegistration(email, selfRegisterSellerDto);
-    console.log('Pending Registrations after adding:', this.pendingRegistrationService.getAllPendingRegistrations());
-
-    // Generate OTP and store it in the database
-    const otp = this.generateOtp();
-    console.log('Generated OTP:', otp);
-    await this.otpService.createOtp(email, otp);
-
-    // Send OTP via email
-    await this.emailService.sendVerificationEmail(email, otp);
-    console.log('OTP sent to:', email);
-  }
-
-  async completeRegistration(email: string, pendingRegistration: SelfRegisterSellerDto): Promise<Seller> {
-    // Create a new seller from pending registration data
-    const hashedPassword = await bcrypt.hash(pendingRegistration.password, 10);
-    
-    const newSeller = new this.sellerModel({
-      email,
-      password: hashedPassword,
-      firstName: pendingRegistration.firstName,
-      lastName: pendingRegistration.lastName,
-      shopName: pendingRegistration.shopName,
-      address: pendingRegistration.address,
-      phoneNumber: pendingRegistration.phoneNumber,
-      role: 'seller', // Default role for sellers
-    });
-
-    return await newSeller.save(); // Save to the database
-  }
-
-  
-  // Simple OTP generation logic (6-digit number)
-  private generateOtp(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-  }
-
-  async findById(id: string): Promise<Seller> {
-    const seller = await this.sellerModel.findById(id).exec();
-    if (!seller) {
-      throw new NotFoundException(`Seller with ID ${id} not found`);
-    }
-    return seller;
-  }
-
-  async findAll(): Promise<Seller[]> {
-    return this.sellerModel.find().exec();
-  }
-
-  async findOne(id: string): Promise<Seller> {
-    return this.sellerModel.findById(id).exec();
-  }
-
-  async update(id: string, updateSellerDto: UpdateSellerDto): Promise<Seller> {
-    return this.sellerModel.findByIdAndUpdate(id, updateSellerDto, { new: true }).exec();
-  }
-
-  async remove(id: string): Promise<Seller> {
-    return this.sellerModel.findByIdAndDelete(id).exec();
-  }
-
-  async findByEmail(email: string): Promise<Seller | null> {
-    return this.sellerModel.findOne({ email }).exec();
-  }
-}
-/* async verifyOtp(email: string, otp: string): Promise<Seller> {
-    console.log(email, otp);
-
-    // Retrieve pending registration from PendingRegistrationService
-    const pendingRegistration = this.pendingRegistrationService.getPendingRegistration(email);
-    if (!pendingRegistration) {
-      throw new ConflictException('No pending registration found for this email');
-    }
-
-    // Validate the OTP from the database
-    const otpRecord = await this.otpService.findOtpByEmail(email);
-    if (!otpRecord || otpRecord.otp !== otp) {
-      throw new ConflictException('Invalid OTP');
-    }
-
-    // Check if OTP has expired (5-minute expiration)
-    const otpAge = Date.now() - otpRecord.createdAt.getTime();
-    if (otpAge > 5 * 60 * 1000) {
-      await this.otpService.deleteOtp(email);
-      throw new ConflictException('OTP has expired');
-    }
-
-    // Hash the password before saving the seller
-    const hashedPassword = await bcrypt.hash(pendingRegistration.password, 10);
-
-    // Create and save the new seller
-    const newSeller = new this.sellerModel({
-      email,
-      shopName: pendingRegistration.shopName,
-      password: hashedPassword,
-      firstName: pendingRegistration.firstName,
-      lastName: pendingRegistration.lastName,
-      address: pendingRegistration.address,
-      phoneNumber: pendingRegistration.phoneNumber,
-    });
-
-    try {
-      const savedSeller = await newSeller.save();
-
-      // Cleanup after successful save
-      await this.otpService.deleteOtp(email);
-      this.pendingRegistrationService.removePendingRegistration(email);
-
-      return savedSeller;
-    } catch (error) {
-      console.error('Error saving seller:', error);
-      throw new InternalServerErrorException('Error registering seller');
-    }
-  }
- */
+   */ 

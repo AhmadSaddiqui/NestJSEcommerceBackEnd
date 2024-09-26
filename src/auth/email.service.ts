@@ -14,13 +14,13 @@ export class EmailService {
   });
 
   async sendVerificationEmail(email: string, otp: string): Promise<void> {
-    console.log("sjdgfjs")
+    
     const mailOptions = {
         
       from: process.env.EMAIL_USER,
       to: email,
       subject: 'OTP Verification',
-      text: `Your OTP is: ${otp}`,
+      text: `Your OTP is: ${otp} verify to continue`,
       
     };
 

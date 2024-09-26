@@ -1,4 +1,4 @@
-// src/common/interfaces/identity.interface.ts
+/* // src/common/interfaces/identity.interface.ts
 
 export interface Identity {
     _id: string;
@@ -6,4 +6,4 @@ export interface Identity {
     role: string;
     password: string; // Add if needed
   }
-  
+   */

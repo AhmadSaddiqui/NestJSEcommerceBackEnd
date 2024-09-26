@@ -12,7 +12,6 @@ export class AuthController {
     private readonly buyerService : BuyersService
   ) {}
 
-  // Registration endpoint
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
     await this.authService.register(registerDto);
@@ -62,11 +61,11 @@ export class AuthController {
       throw new BadRequestException('Email and OTP are required');
     }
 
-    // Call the service to verify the OTP and complete registration
+    
     const user = await this.authService.verifyOtp(email, otp);
     return { 
       message: 'OTP verified successfully. You are now registered.', 
-      user  // Optionally return the user details if needed
+      user  
     };
   }
   @Get('users')

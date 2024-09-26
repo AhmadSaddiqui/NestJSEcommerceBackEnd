@@ -7,7 +7,7 @@ import { PendingRegistration } from './pending-registration.interface';
 export class PendingRegistrationService {
   private pendingRegistrations = new Map<string, PendingRegistration>();
 
-  // Add registration to pending map
+ 
   addPendingRegistration(email: string, data: PendingRegistration): void {
     this.pendingRegistrations.set(email, data);
   }

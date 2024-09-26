@@ -1,4 +1,264 @@
-/* // src/auth/auth.service.ts
+import {
+      Injectable,
+      BadRequestException,
+      InternalServerErrorException,
+    } from '@nestjs/common';
+    import { JwtService } from '@nestjs/jwt';
+    import { BuyersService } from '../buyers/buyers.service';
+    import { SellersService } from '../sellers/sellers.service';
+    import { UsersService } from '../users/users.service';
+    import { OtpService } from '../otp/otp.service';
+    import { RegisterDto } from './register.dto';
+    import { LoginDto } from './login.dto';
+    import * as bcrypt from 'bcrypt';
+    import { EmailService } from './email.service';
+    import { PendingRegistrationService } from '../pending-registration/pending-registration.service';
+    import { SelfRegisterSellerDto } from 'src/sellers/dto/SelfRegisterSellerDto';
+import { PendingRegistration } from 'src/pending-registration/pending-registration.interface';
+    
+    @Injectable()
+    export class AuthService {
+      constructor(
+        private readonly buyersService: BuyersService,
+        private readonly sellersService: SellersService,
+        private readonly usersService: UsersService,
+        private readonly jwtService: JwtService,
+        private readonly emailService: EmailService,
+        private readonly otpService: OtpService,
+        private readonly pendingRegistrationService: PendingRegistrationService,
+      ) {}
+    
+      async register(registerDto: RegisterDto | SelfRegisterSellerDto): Promise<void> {
+        const { email } = registerDto;
+    
+        if (!email) {
+          throw new BadRequestException('Missing required fields');
+        }
+    
+      
+        const normalizedEmail = email.trim().toLowerCase();
+    
+        
+        await this.checkEmailExists(normalizedEmail, registerDto.role);
+    
+       
+        const otp = this.generateOtp();
+    
+       
+        const pendingRegistration: PendingRegistration = {
+          email: normalizedEmail,
+          password: registerDto.password,
+          role: registerDto.role,
+          firstName: (registerDto as SelfRegisterSellerDto).firstName || '', // Only extract if it's a seller
+          lastName: (registerDto as SelfRegisterSellerDto).lastName || '', // Only extract if it's a seller
+          shopName: (registerDto as SelfRegisterSellerDto).shopName || '', // Only extract if it's a seller
+          address: (registerDto as SelfRegisterSellerDto).address || '', // Only extract if it's a seller
+          phoneNumber: (registerDto as SelfRegisterSellerDto).phoneNumber || '', // Only extract if it's a seller
+        };
+    
+        
+        this.pendingRegistrationService.addPendingRegistration(
+          normalizedEmail,
+          pendingRegistration
+        );
+        console.log(`Pending registration added for ${normalizedEmail}`);
+    
+        
+        await this.otpService.createOtp(normalizedEmail, otp);
+        console.log(`OTP created for ${normalizedEmail}:`, otp);
+    
+        await this.emailService.sendVerificationEmail(normalizedEmail, otp);
+        console.log(`OTP sent to ${normalizedEmail}`);
+      }
+    
+      
+      async verifyOtp(email: string, otp: string): Promise<any> {
+        const normalizedEmail = email.trim().toLowerCase();
+    
+        
+        const pendingRegistration = this.pendingRegistrationService.getPendingRegistration(normalizedEmail) as SelfRegisterSellerDto;
+        if (!pendingRegistration) {
+          throw new BadRequestException('No pending registration found');
+        }
+    
+      
+        const storedOtp = await this.otpService.findOtpByEmail(normalizedEmail);
+        if (!storedOtp || storedOtp.otp !== otp) {
+          throw new BadRequestException('Invalid OTP');
+        }
+    
+      
+        const isExpired = Date.now() - storedOtp.createdAt.getTime() > 5 * 60 * 1000;
+        if (isExpired) {
+          await this.otpService.deleteOtp(normalizedEmail); 
+          throw new BadRequestException('OTP has expired');
+        }
+    
+       
+        const user = await this.sellersService.completeRegistration(normalizedEmail, pendingRegistration);
+    
+       
+        await this.otpService.deleteOtp(normalizedEmail); 
+        this.pendingRegistrationService.removePendingRegistration(normalizedEmail); 
+        console.log('Seller successfully registered:', user);
+        return user;
+      }
+      
+      private isRegisterDto(dto: any): dto is RegisterDto {
+        return (dto as RegisterDto).role !== undefined;
+      }
+    
+     
+      private async checkEmailExists(email: string, role: string): Promise<void> {
+        if (role === 'buyer') {
+          const existingBuyer = await this.buyersService.findByEmail(email);
+          if (existingBuyer) throw new BadRequestException('Email already exists');
+        } else if (role === 'seller') {
+          const existingSeller = await this.sellersService.findByEmail(email);
+          if (existingSeller) throw new BadRequestException('Email already exists');
+        } else if (role === 'user') {
+          const existingUser = await this.usersService.findByEmail(email);
+          if (existingUser) throw new BadRequestException('Email already exists');
+        } else {
+          throw new BadRequestException('Invalid role for registration');
+        }
+      }
+     
+      private async registerUser(
+        registerDto: RegisterDto | SelfRegisterSellerDto,
+        email: string
+      ): Promise<any> {
+        const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+        
+        if (this.isRegisterDto(registerDto)) {
+          // Handle buyer/user registration using RegisterDto
+          const { role } = registerDto;
+    
+          if (role === 'buyer') {
+            return this.buyersService.create({
+              email,
+              password: hashedPassword,
+              address: '',
+              phoneNumber: '',
+              firstName: '',
+              lastName: '',
+              username: 'default',
+            });
+          } else if (role === 'admin') {
+            return this.usersService.create({
+              name: registerDto.name,
+              username: registerDto.username,
+              email,
+              password: hashedPassword,
+              role,
+            });
+          }
+        } else {
+        
+          const role = registerDto.role;
+          
+          if (role !== 'seller') {
+            throw new BadRequestException('Invalid role for registration');
+          }
+    
+          // Create the seller in the database
+          const seller = await this.sellersService.selfRegister({
+            email,
+            password: hashedPassword,
+            address: registerDto.address,
+            phoneNumber: registerDto.phoneNumber,
+            firstName: registerDto.firstName,
+            lastName: registerDto.lastName,
+            shopName: registerDto.shopName,
+            role,
+          });
+          console.log('Seller registered:', seller);
+          return seller;
+        }
+      }
+    
+      // Utility function to check if the DTO is RegisterDto
+      
+      // Generate a random 6-digit OTP
+      private generateOtp(): string {
+        return Math.floor(100000 + Math.random() * 900000).toString();
+      }
+    
+      // Login logic
+      async login(loginDto: LoginDto): Promise<{ token: string }> {
+        const { email, password, role } = loginDto;
+        let user;
+    
+        try {
+          if (role === 'buyer') {
+            user = await this.buyersService.findByEmail(email);
+          } else if (role === 'seller') {
+            user = await this.sellersService.findByEmail(email);
+          } else if (role === 'admin') {
+            user = await this.usersService.findByEmail(email);
+          } else {
+            throw new BadRequestException('Invalid role for login');
+          }
+    
+          if (!user) {
+            throw new BadRequestException('Invalid credentials');
+          }
+    
+          const isPasswordValid = await bcrypt.compare(password, user.password);
+          if (!isPasswordValid) {
+            throw new BadRequestException('Invalid credentials');
+          }
+    
+          const payload = { id: user._id, email: user.email, role: user.role };
+          const token = this.jwtService.sign(payload);
+    
+          return { token };
+        } catch (error) {
+          throw new InternalServerErrorException('Internal server error');
+        }
+      }
+    
+      // Utility to find user by ID
+      async findById(id: string): Promise<any> {
+        const buyer = await this.buyersService.findById(id);
+        if (buyer) return buyer;
+    
+        const seller = await this.sellersService.findById(id);
+        if (seller) return seller;
+    
+        const user = await this.usersService.findById(id);
+        if (user) return user;
+    
+        throw new BadRequestException('User not found');
+      }
+    
+      // Utility to find user by Email
+      async findByEmail(email: string): Promise<any> {
+        const buyer = await this.buyersService.findByEmail(email);
+        if (buyer) return buyer;
+    
+        const seller = await this.sellersService.findByEmail(email);
+        if (seller) return seller;
+    
+        const user = await this.usersService.findByEmail(email);
+        if (user) return user;
+    
+        throw new BadRequestException('User not found');
+      }
+      async getAllUsers(): Promise<any[]> {
+        try {
+          const buyers = await this.buyersService.findAllBuyers();
+          const sellers = await this.sellersService.findAll();
+          const users = await this.usersService.findAll();
+    
+          return [ ...buyers , ...sellers, ...users]; // Combine all users
+        } catch (error) {
+          throw new InternalServerErrorException('Failed to fetch all users');
+        }
+      }
+    }
+    
+    /* // src/auth/auth.service.ts
 
 import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -776,265 +1036,3 @@ export class AuthService {
       }
     }
    */
-    import {
-      Injectable,
-      BadRequestException,
-      InternalServerErrorException,
-    } from '@nestjs/common';
-    import { JwtService } from '@nestjs/jwt';
-    import { BuyersService } from '../buyers/buyers.service';
-    import { SellersService } from '../sellers/sellers.service';
-    import { UsersService } from '../users/users.service';
-    import { OtpService } from '../otp/otp.service';
-    import { RegisterDto } from './register.dto';
-    import { LoginDto } from './login.dto';
-    import * as bcrypt from 'bcrypt';
-    import { EmailService } from './email.service';
-    import { PendingRegistrationService } from '../pending-registration/pending-registration.service';
-    import { SelfRegisterSellerDto } from 'src/sellers/dto/SelfRegisterSellerDto';
-import { PendingRegistration } from 'src/pending-registration/pending-registration.interface';
-    
-    @Injectable()
-    export class AuthService {
-      constructor(
-        private readonly buyersService: BuyersService,
-        private readonly sellersService: SellersService,
-        private readonly usersService: UsersService,
-        private readonly jwtService: JwtService,
-        private readonly emailService: EmailService,
-        private readonly otpService: OtpService,
-        private readonly pendingRegistrationService: PendingRegistrationService,
-      ) {}
-    
-      async register(registerDto: RegisterDto | SelfRegisterSellerDto): Promise<void> {
-        const { email } = registerDto;
-    
-        if (!email) {
-          throw new BadRequestException('Missing required fields');
-        }
-    
-        // Normalize email
-        const normalizedEmail = email.trim().toLowerCase();
-    
-        // Check if email already exists
-        await this.checkEmailExists(normalizedEmail, registerDto.role);
-    
-        // Generate OTP
-        const otp = this.generateOtp();
-    
-        // Create a pending registration object
-        const pendingRegistration: PendingRegistration = {
-          email: normalizedEmail,
-          password: registerDto.password,
-          role: registerDto.role,
-          firstName: (registerDto as SelfRegisterSellerDto).firstName || '', // Only extract if it's a seller
-          lastName: (registerDto as SelfRegisterSellerDto).lastName || '', // Only extract if it's a seller
-          shopName: (registerDto as SelfRegisterSellerDto).shopName || '', // Only extract if it's a seller
-          address: (registerDto as SelfRegisterSellerDto).address || '', // Only extract if it's a seller
-          phoneNumber: (registerDto as SelfRegisterSellerDto).phoneNumber || '', // Only extract if it's a seller
-        };
-    
-        // Store registration details in PendingRegistrationService
-        this.pendingRegistrationService.addPendingRegistration(
-          normalizedEmail,
-          pendingRegistration
-        );
-        console.log(`Pending registration added for ${normalizedEmail}`);
-    
-        // Store OTP in the database
-        await this.otpService.createOtp(normalizedEmail, otp);
-        console.log(`OTP created for ${normalizedEmail}:`, otp);
-    
-        // Send OTP via Email
-        await this.emailService.sendVerificationEmail(normalizedEmail, otp);
-        console.log(`OTP sent to ${normalizedEmail}`);
-      }
-    
-      // Verify OTP and complete registration
-      async verifyOtp(email: string, otp: string): Promise<any> {
-        const normalizedEmail = email.trim().toLowerCase();
-    
-        // Retrieve pending registration details
-        const pendingRegistration = this.pendingRegistrationService.getPendingRegistration(normalizedEmail) as SelfRegisterSellerDto;
-        if (!pendingRegistration) {
-          throw new BadRequestException('No pending registration found');
-        }
-    
-        // Validate OTP from the database
-        const storedOtp = await this.otpService.findOtpByEmail(normalizedEmail);
-        if (!storedOtp || storedOtp.otp !== otp) {
-          throw new BadRequestException('Invalid OTP');
-        }
-    
-        // Check if OTP has expired (5 minutes)
-        const isExpired = Date.now() - storedOtp.createdAt.getTime() > 5 * 60 * 1000;
-        if (isExpired) {
-          await this.otpService.deleteOtp(normalizedEmail); // Remove expired OTP
-          throw new BadRequestException('OTP has expired');
-        }
-    
-        // Complete registration by transferring pending registration to DB
-        const user = await this.sellersService.completeRegistration(normalizedEmail, pendingRegistration);
-    
-        // Clean up after registration
-        await this.otpService.deleteOtp(normalizedEmail); // Remove OTP after successful registration
-        this.pendingRegistrationService.removePendingRegistration(normalizedEmail); // Remove pending registration
-        console.log('Seller successfully registered:', user);
-        return user;
-      }
-      // Utility function to check if the DTO is RegisterDto
-      private isRegisterDto(dto: any): dto is RegisterDto {
-        return (dto as RegisterDto).role !== undefined;
-      }
-    
-      // Utility to check if email already exists
-      private async checkEmailExists(email: string, role: string): Promise<void> {
-        if (role === 'buyer') {
-          const existingBuyer = await this.buyersService.findByEmail(email);
-          if (existingBuyer) throw new BadRequestException('Email already exists');
-        } else if (role === 'seller') {
-          const existingSeller = await this.sellersService.findByEmail(email);
-          if (existingSeller) throw new BadRequestException('Email already exists');
-        } else if (role === 'user') {
-          const existingUser = await this.usersService.findByEmail(email);
-          if (existingUser) throw new BadRequestException('Email already exists');
-        } else {
-          throw new BadRequestException('Invalid role for registration');
-        }
-      }
-     // Helper method to register user based on role
-      private async registerUser(
-        registerDto: RegisterDto | SelfRegisterSellerDto,
-        email: string
-      ): Promise<any> {
-        const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-        
-        if (this.isRegisterDto(registerDto)) {
-          // Handle buyer/user registration using RegisterDto
-          const { role } = registerDto;
-    
-          if (role === 'buyer') {
-            return this.buyersService.create({
-              email,
-              password: hashedPassword,
-              address: '',
-              phoneNumber: '',
-              firstName: '',
-              lastName: '',
-              username: 'default',
-            });
-          } else if (role === 'admin') {
-            return this.usersService.create({
-              name: registerDto.name,
-              username: registerDto.username,
-              email,
-              password: hashedPassword,
-              role,
-            });
-          }
-        } else {
-          // Handle seller registration using SelfRegisterSellerDto
-          const role = registerDto.role;
-          
-          if (role !== 'seller') {
-            throw new BadRequestException('Invalid role for registration');
-          }
-    
-          // Create the seller in the database
-          const seller = await this.sellersService.selfRegister({
-            email,
-            password: hashedPassword,
-            address: registerDto.address,
-            phoneNumber: registerDto.phoneNumber,
-            firstName: registerDto.firstName,
-            lastName: registerDto.lastName,
-            shopName: registerDto.shopName,
-            role,
-          });
-          console.log('Seller registered:', seller);
-          return seller;
-        }
-      }
-    
-      // Utility function to check if the DTO is RegisterDto
-      
-      // Generate a random 6-digit OTP
-      private generateOtp(): string {
-        return Math.floor(100000 + Math.random() * 900000).toString();
-      }
-    
-      // Login logic
-      async login(loginDto: LoginDto): Promise<{ token: string }> {
-        const { email, password, role } = loginDto;
-        let user;
-    
-        try {
-          if (role === 'buyer') {
-            user = await this.buyersService.findByEmail(email);
-          } else if (role === 'seller') {
-            user = await this.sellersService.findByEmail(email);
-          } else if (role === 'admin') {
-            user = await this.usersService.findByEmail(email);
-          } else {
-            throw new BadRequestException('Invalid role for login');
-          }
-    
-          if (!user) {
-            throw new BadRequestException('Invalid credentials');
-          }
-    
-          const isPasswordValid = await bcrypt.compare(password, user.password);
-          if (!isPasswordValid) {
-            throw new BadRequestException('Invalid credentials');
-          }
-    
-          const payload = { id: user._id, email: user.email, role: user.role };
-          const token = this.jwtService.sign(payload);
-    
-          return { token };
-        } catch (error) {
-          throw new InternalServerErrorException('Internal server error');
-        }
-      }
-    
-      // Utility to find user by ID
-      async findById(id: string): Promise<any> {
-        const buyer = await this.buyersService.findById(id);
-        if (buyer) return buyer;
-    
-        const seller = await this.sellersService.findById(id);
-        if (seller) return seller;
-    
-        const user = await this.usersService.findById(id);
-        if (user) return user;
-    
-        throw new BadRequestException('User not found');
-      }
-    
-      // Utility to find user by Email
-      async findByEmail(email: string): Promise<any> {
-        const buyer = await this.buyersService.findByEmail(email);
-        if (buyer) return buyer;
-    
-        const seller = await this.sellersService.findByEmail(email);
-        if (seller) return seller;
-    
-        const user = await this.usersService.findByEmail(email);
-        if (user) return user;
-    
-        throw new BadRequestException('User not found');
-      }
-      async getAllUsers(): Promise<any[]> {
-        try {
-          const buyers = await this.buyersService.findAllBuyers();
-          const sellers = await this.sellersService.findAll();
-          const users = await this.usersService.findAll();
-    
-          return [ ...buyers , ...sellers, ...users]; // Combine all users
-        } catch (error) {
-          throw new InternalServerErrorException('Failed to fetch all users');
-        }
-      }
-    }
-    
-    

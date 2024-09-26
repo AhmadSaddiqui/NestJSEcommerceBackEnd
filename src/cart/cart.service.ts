@@ -258,29 +258,28 @@ export class CartService {
     
     const trimmedProductId = productId.trim();
     
-    // Validate the product ID format
+   
     if (!Types.ObjectId.isValid(trimmedProductId)) {
         throw new BadRequestException('Invalid product ID format');
     }
     
-    // Retrieve the cart for the given buyer ID
+  
     const cart = await this.cartModel.findOne({ buyer: buyerId });
-    console.log('Cart:', cart); // Log the cart object
+    console.log('Cart:', cart); 
     
     if (!cart) {
         throw new NotFoundException('Cart not found');
     }
 
-    // Find the index of the product in the cart items
+    
     const productIndex = cart.items.findIndex(item => item.product.toString() === trimmedProductId);
     
-    // If product does not exist in the cart, throw an exception
+  
     if (productIndex === -1) {
         throw new NotFoundException('Product not found in cart');
     }
 
-    // Remove the product from the cart items
-    cart.items.splice(productIndex, 1); // Remove the product at the found index
+    cart.items.splice(productIndex, 1); 
     
     console.log('Updated Cart Items:', cart.items);
     
