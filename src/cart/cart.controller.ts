@@ -107,7 +107,7 @@ export class CartController {
   constructor(private readonly cartService: CartService) {}
 
   
-  @Post()
+  @Post('add')
   @UseGuards(JwtAuthGuard)
   async addToCart(@Body() createCartDto: CreateCartDto, @Request() req: any) {
     const buyerId = req.user.userId;
