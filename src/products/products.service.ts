@@ -116,43 +116,51 @@ export class ProductsService {
 
     await this.productModel.findByIdAndDelete(id).exec();
   }
-async searchByTags(tags: string[]): Promise<Product[]> {
-  const products = await this.productModel.aggregate([
-    {
-      $match: {
-        tags: { $in: tags },  // Matches products with at least one tag in the tags array
+  async searchByTags(tags: string[]): Promise<Product[]> {
+    const products = await this.productModel.aggregate([
+      {
+        $match: {
+          tags: { $in: tags },  // Matches products with at least one tag in the tags array
+        },
       },
-    },
-    {
-      $project: {
-        title: 1,
-        description: 1,
-        tags: 1,
-        matchingTagsCount: {
-          $size: {
-            $filter: {
-              input: '$tags',
-              as: 'tag',
-              cond: { $in: ['$$tag', tags] },  // Count how many tags match
+      {
+        $project: {
+          title: 1,
+          description: 1,
+          price: 1,  // Add this to include price in the projection
+          image: 1,  // Ensure image is also included
+          tags: 1,
+          matchingTagsCount: {
+            $size: {
+              $filter: {
+                input: '$tags',
+                as: 'tag',
+                cond: { $in: ['$$tag', tags] },  // Count how many tags match
+              },
             },
           },
         },
       },
-    },
-    {
-      $sort: { matchingTagsCount: -1 },  // Sort by the number of matching tags in descending order
-    },
-    {
-      $limit: 10  // Limit the number of products returned to 10 (can be adjusted)
+      {
+        $match: {
+          matchingTagsCount: { $gte: 30 },  // Ensure at least 2 tags match
+        },
+      },
+      {
+        $sort: { matchingTagsCount: -1 },  // Sort by the number of matching tags in descending order
+      },
+      {
+        $limit: 10  // Limit the number of products returned to 10 (adjust as needed)
+      }
+    ]);
+  
+    if (products.length === 0) {
+      throw new NotFoundException('No products found with matching tags');
     }
-  ]);
-
-  if (products.length === 0) {
-    throw new NotFoundException('No products found with matching tags');
+  
+    return products;
   }
-
-  return products;
-}
+  
 
 }
 

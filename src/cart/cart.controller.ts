@@ -101,6 +101,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateCartDto } from './dto/create-cart-item.dto';
 import { console } from 'inspector';
 import {Types} from 'mongoose'
+import { Role } from 'src/auth/roles.decorator';
+import { User } from 'src/users/schema/users.schema';
 
 @Controller('cart')
 export class CartController {
@@ -109,6 +111,7 @@ export class CartController {
   
   @Post('add')
   @UseGuards(JwtAuthGuard)
+  
   async addToCart(@Body() createCartDto: CreateCartDto, @Request() req: any) {
     const buyerId = req.user.userId;
     console.log(buyerId)

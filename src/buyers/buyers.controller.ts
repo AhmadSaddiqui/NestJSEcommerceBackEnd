@@ -5,7 +5,7 @@ import { CreateBuyerDto } from './dto/create-buyer.dto';
 import { UpdateBuyerDto } from './dto/update-buyer.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Request } from 'express';
-
+import { Role } from '../auth/roles.decorator';
 @Controller('buyers')
 
 export class BuyersController {
@@ -22,6 +22,7 @@ export class BuyersController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
+  //@Role('buyer')
   async findById(@Param('id') id: string) {
     return this.buyersService.findById(id);
   }
